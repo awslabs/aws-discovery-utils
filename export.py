@@ -124,7 +124,7 @@ def extract_exports(exports_info, agent_id, dir_name):
 	actual_end = None
 	export_meta = exporting_agents[agent_id]
 	start_time, end_time, curr_id = export_meta[0], export_meta[1], export_meta[2]
-	start_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ') + "_"
+	start_str = start_time.strftime('%Y-%m-%dT%H%M%SZ') + "_"
 	with zipfile.ZipFile(zipped, 'r') as zip_ref:
 		for name in zip_ref.namelist():
 			basename = os.path.basename(name)
