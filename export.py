@@ -18,8 +18,8 @@ import json
 import time
 import argparse
 
-# Max # of concurrent export tasks allowed to be started
-MAX_EXPORTS = 5
+MAX_EXPORTS = 5			# Max number of concurrent export tasks
+MAX_DESCRIBE_AGENTS = 100	# Max number of results from describe agents
 
 # Returns datetime of given time string; space = True for space between days and hours
 def get_time(time, space=False):
@@ -28,7 +28,7 @@ def get_time(time, space=False):
 	return datetime.datetime.strptime(time,'%Y-%m-%dT%H:%M:%SZ')
 
 
-# Begins export task for up to MAX_EXPORTS # of agents
+# Begins export task for up to MAX_EXPORTS agents
 def start_exporting(count):
 	while len(exporting_agents) < MAX_EXPORTS and len(agents_queue) > 0:
 		agent = agents_queue.pop(0)
@@ -44,9 +44,12 @@ def start_exporting(count):
 			final_end_time = min(last_health_time, end_input)
 		else:
 			final_end_time = last_health_time
-		# Invalid time range
+
 		if start_time >= final_end_time:
+			print(str.format("Nothing to export for agent {} since registeredTime={} and lastHealthPingTime={}", agent['agentId'], reg_time, last_health_time))
 			continue
+
+		print(str.format("Export for agent {} will start at {} (registeredTime={}) and end at {} (lastHealthPingTime={})", agent['agentId'], start_time, reg_time, final_end_time, last_health_time))
 		try:
 			response = client.start_export_task(filters=[{'name': 'agentIds', 'values': [agent['agentId']], 'condition': 'EQUALS'}], 
 									startTime = start_time, endTime = min(start_time + datetime.timedelta(days=3), final_end_time))
@@ -55,10 +58,13 @@ def start_exporting(count):
 			if (type(e).__name__ == "OperationNotPermittedException"):
 				last_word = e.message.split()[-1]
 				if last_word == "another.":
+					# Full message: You have reached limit of maximum allowed concurrent exports. Please wait for current export tasks to finish before starting another.
 					agents_queue.insert(0, agent)
-					print("Maximum number of concurrent exports exceeded. Waiting...")
+					count -= 1
+					print(str.format("Maximum number of concurrent exports exceeded. Requeuing agent {} and waiting...", agent['agentId']))
 					time.sleep(8)
 				else:
+					print(str.format("OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
 					exporting_agents[agent['agentId']] = [start_time, final_end_time, last_word]
 			else:
 				raise(e)
@@ -173,11 +179,21 @@ if __name__ == '__main__':
 
 	client = boto3.client('discovery')
 
-	if filters != None:
-		agents_queue = [agent for agent in client.describe_agents()['agentsInfo'] if agent['agentId'] in filters and 
+	print("Querying Discovery Service for agents to export.")
+	agents_queue = []
+	moreAgents = True
+	nextToken=""
+	while moreAgents:
+		response = client.describe_agents(maxResults=MAX_DESCRIBE_AGENTS, nextToken=nextToken)
+		if filters:
+			agents_queue += [agent for agent in response['agentsInfo'] if agent['agentId'] in filters and 
 						"connector" not in agent['agentType'].lower()]
-	else:
-		agents_queue = [agent for agent in client.describe_agents()['agentsInfo'] if "connector" not in agent['agentType'].lower()]
+		else:
+			agents_queue += [agent for agent in response['agentsInfo'] if "connector" not in agent['agentType'].lower()]
+		if 'nextToken' in response:
+			nextToken = response['nextToken']
+		else:
+			moreAgents = False
 
 	#Maps each currently exporting agent to [next start time, final end time, current exportId]
 	exporting_agents = {}
