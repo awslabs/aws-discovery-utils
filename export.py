@@ -87,14 +87,18 @@ def poll_exports(dir_name):
 				export_response = client.describe_export_tasks(nextToken=export_response['nextToken'])
 		time.sleep(1)
 		# Extract data on successful export task
-		if exports_info['exportStatus'] == "SUCCEEDED":
+		if exports_info['exportStatus'] in ["SUCCEEDED", "FAILED"]:
 			if logging:
-				print("    Successful!")
-			(actual_start, actual_end) = extract_exports(exports_info, agent_id, dir_name)
-			# Set new start time to be end time of sucessful export
+				print(str.format("    export {}", exports_info['exportStatus']))
+			if exports_info['exportStatus'] == "SUCCEEDED":
+				(actual_start, actual_end) = extract_exports(exports_info, agent_id, dir_name)
+			else:
+				print(str.format("exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
+				actual_end = exports_info['requestedEndTime'] if 'requestedEndTime' in exports_info else None
+			# Set new start time to be end time of completed export
 			exporting_agents[agent_id][0] = actual_end
 			# If actual end time past final end time or start/end times equal, export is done for agent
-			if actual_end == actual_start or actual_end >= exporting_agents[agent_id][1]:
+			if actual_end == None or actual_end == actual_start or actual_end >= exporting_agents[agent_id][1]:
 				print("Finished exporting agent " + agent_id)
 				done.append(agent_id)
 			# Otherwise, go to next export
@@ -115,9 +119,11 @@ def poll_exports(dir_name):
 							exporting_agents[agent_id][2] = e.message.split()[-1]
 					else:
 						raise(e)
+		elif exports_info['exportStatus'] == "IN_PROGRESS":
+                        if logging:
+                                print("    In progress; waiting...")
 		else:
-			if logging:
-				print("    In progress; waiting...")
+			print(str.format("ERROR: Unknown status for exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
 	for agent_id in done:
 		del exporting_agents[agent_id]
 
