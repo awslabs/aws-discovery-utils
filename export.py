@@ -97,7 +97,7 @@ def poll_exports(dir_name):
 			# Set new start time to be end time of completed export
 			exporting_agents[agent_id][0] = actual_end
 			# If actual end time past final end time or start/end times equal, export is done for agent
-			if not actual_end or actual_end == actual_start or actual_end >= exporting_agents[agent_id][1]:
+			if exports_info['exportStatus'] == "FAILED" or actual_end == actual_start or actual_end >= exporting_agents[agent_id][1]:
 				logging.info("Finished exporting agent " + agent_id)
 				done.append(agent_id)
 			# Otherwise, go to next export
