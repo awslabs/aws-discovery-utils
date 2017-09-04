@@ -17,6 +17,7 @@ import shutil
 import json
 import time
 import argparse
+import logging
 
 MAX_EXPORTS = 5			# Max number of concurrent export tasks
 MAX_DESCRIBE_AGENTS = 100	# Max number of results from describe agents
@@ -33,7 +34,7 @@ def start_exporting(count):
 	while len(exporting_agents) < MAX_EXPORTS and len(agents_queue) > 0:
 		agent = agents_queue.pop(0)
 		count += 1
-		print("Starting export for agent " + agent['agentId'] + " (" + str(count) + "/" + str(total_exports) + ")")
+		logging.info(str.format("Starting export for agent {} ({}/{})", agent['agentId'], str(count), str(total_exports)))
 		reg_time = get_time(agent['registeredTime'])
 		last_health_time = get_time(agent['lastHealthPingTime'])
 		if start_input != None:
@@ -46,10 +47,10 @@ def start_exporting(count):
 			final_end_time = last_health_time
 
 		if start_time >= final_end_time:
-			print(str.format("Nothing to export for agent {} since registeredTime={} and lastHealthPingTime={}", agent['agentId'], reg_time, last_health_time))
+			logging.info(str.format("Nothing to export for agent {} since registeredTime={} and lastHealthPingTime={}", agent['agentId'], reg_time, last_health_time))
 			continue
 
-		print(str.format("Export for agent {} will start at {} (registeredTime={}) and end at {} (lastHealthPingTime={})", agent['agentId'], start_time, reg_time, final_end_time, last_health_time))
+		logging.info(str.format("Export for agent {} will start at {} (registeredTime={}) and end at {} (lastHealthPingTime={})", agent['agentId'], start_time, reg_time, final_end_time, last_health_time))
 		try:
 			response = client.start_export_task(filters=[{'name': 'agentIds', 'values': [agent['agentId']], 'condition': 'EQUALS'}], 
 									startTime = start_time, endTime = min(start_time + datetime.timedelta(days=3), final_end_time))
@@ -61,10 +62,10 @@ def start_exporting(count):
 					# Full message: You have reached limit of maximum allowed concurrent exports. Please wait for current export tasks to finish before starting another.
 					agents_queue.insert(0, agent)
 					count -= 1
-					print(str.format("Maximum number of concurrent exports exceeded. Requeuing agent {} and waiting...", agent['agentId']))
+					logging.info(str.format("Maximum number of concurrent exports exceeded. Requeuing agent {} and waiting...", agent['agentId']))
 					time.sleep(8)
 				else:
-					print(str.format("OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
+					logging.info(str.format("OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
 					exporting_agents[agent['agentId']] = [start_time, final_end_time, last_word]
 			else:
 				raise(e)
@@ -73,8 +74,7 @@ def start_exporting(count):
 def poll_exports(dir_name):
 	done = []
 	for agent_id in exporting_agents:
-		if logging:
-			print("Trying to export data for " + agent_id + " from " + str(exporting_agents[agent_id][0]))
+		logging.info("Trying to export data for " + agent_id + " from " + str(exporting_agents[agent_id][0]))
 		export_response = client.describe_export_tasks(filters=[{'name': 'agentIds', 'values': [agent_id], 'condition': 'EQUALS'}])
 		time.sleep(1)
 		exports_info = None
@@ -88,18 +88,17 @@ def poll_exports(dir_name):
 		time.sleep(1)
 		# Extract data on successful export task
 		if exports_info['exportStatus'] in ["SUCCEEDED", "FAILED"]:
-			if logging:
-				print(str.format("    export {}", exports_info['exportStatus']))
+			logging.info(str.format("    export {}", exports_info['exportStatus']))
 			if exports_info['exportStatus'] == "SUCCEEDED":
 				(actual_start, actual_end) = extract_exports(exports_info, agent_id, dir_name)
 			else:
-				print(str.format("exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
+				logging.info(str.format("exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
 				actual_end = exports_info['requestedEndTime'] if 'requestedEndTime' in exports_info else None
 			# Set new start time to be end time of completed export
 			exporting_agents[agent_id][0] = actual_end
 			# If actual end time past final end time or start/end times equal, export is done for agent
-			if actual_end == None or actual_end == actual_start or actual_end >= exporting_agents[agent_id][1]:
-				print("Finished exporting agent " + agent_id)
+			if not actual_end or actual_end == actual_start or actual_end >= exporting_agents[agent_id][1]:
+				logging.info("Finished exporting agent " + agent_id)
 				done.append(agent_id)
 			# Otherwise, go to next export
 			else:
@@ -113,23 +112,23 @@ def poll_exports(dir_name):
 					if (type(e).__name__ == "OperationNotPermittedException"):
 						last_word = e.message.split()[-1]
 						if (last_word == "another."): # Too many concurrent exports
-							print("Maximum number of concurrent exports exceeded. Waiting...")
+							logging.info("Maximum number of concurrent exports exceeded. Waiting...")
 							time.sleep(8)
 						else: # Export already exists
 							exporting_agents[agent_id][2] = e.message.split()[-1]
 					else:
 						raise(e)
 		elif exports_info['exportStatus'] == "IN_PROGRESS":
-                        if logging:
-                                print("    In progress; waiting...")
+                        logging.info("    In progress; waiting...")
 		else:
-			print(str.format("ERROR: Unknown status for exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
+			logging.info(str.format("ERROR: Unknown status for exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
 	for agent_id in done:
 		del exporting_agents[agent_id]
 
 		
 # Returns actual end time
 def extract_exports(exports_info, agent_id, dir_name):
+	logging.debug(str.format("extracting {}, url={}", exports_info['exportId'], exports_info['configurationsDownloadUrl']))
 	zipped, _ = urllib.urlretrieve(exports_info['configurationsDownloadUrl'])
 	# String representing start time of export
 	actual_start = None
@@ -171,8 +170,7 @@ def parse_args():
 	parser.add_argument("--end-time", help="The end timestamp until which exported data will be collected. Format: YYYY-MM-DDTHH:MM", 
 						type=lambda d: datetime.datetime.strptime(d, '%Y-%m-%dT%H:%M'))
 	parser.add_argument("--filters", help="List of agentIds for which exported data will be collected.", nargs='+', type=str)
-	parser.add_argument("--sparse-logging", help="Disable detailed logging of export process.", dest="logging", action='store_false')
-	parser.set_defaults(logging=True)
+	parser.add_argument("--log-file", help="File name where logs will be written, instead of the console", dest="log_file")
 	return parser.parse_args()
 
 if __name__ == '__main__':
@@ -181,11 +179,17 @@ if __name__ == '__main__':
 	start_input = args.start_time
 	end_input = args.end_time
 	filters = args.filters
-	logging = args.logging
+	log_file = args.log_file
+
+	if log_file:
+		print(str.format("Debug log file {} configured; this will be the last message to the console.", log_file))
+		logging.basicConfig(filename=log_file, level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(name)s: %(message)s')
+	else:
+		logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s: %(message)s')
 
 	client = boto3.client('discovery')
 
-	print("Querying Discovery Service for agents to export.")
+	logging.info(str.format("Querying Discovery Service for agents to export. directory={}, start_time={}, end_time={}, filters={}", dir_name, start_input, end_input, filters))
 	agents_queue = []
 	moreAgents = True
 	nextToken=""
@@ -204,12 +208,12 @@ if __name__ == '__main__':
 	#Maps each currently exporting agent to [next start time, final end time, current exportId]
 	exporting_agents = {}
 	total_exports = len(agents_queue)
-	print("Beginning export for " + str(total_exports) + " agents.")
+	logging.info("Beginning export for " + str(total_exports) + " agents.")
 	count = 0
 	count = start_exporting(count)
 	while len(agents_queue) > 0 or len(exporting_agents) > 0:
 		poll_exports(dir_name)
 		time.sleep(2)
 		count = start_exporting(count)
-	print("Finished exporting all agents.")
+	logging.info("Finished exporting all agents.")
 
