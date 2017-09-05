@@ -148,7 +148,7 @@ def parse_args():
 	parser.add_argument("--directory", help="Path to directory containing agentExports folder. Default set to current directory.",
 						 type=str, default=os.getcwd())
 	parser.add_argument("--filters", help="List of agentIds for which exported data will be collected.", nargs='+', type=str)
-	parser.add_argument("bucket-name", help="Name of S3 bucket where exports converted to parquet format will be stored.",  type=str)
+	parser.add_argument("bucket_name", metavar="bucket-name", help="Name of S3 bucket where exports converted to parquet format will be stored.", type=str)
 	parser.add_argument("region", help="Region for S3 bucket.", type=str)
 	return parser.parse_args()
 
