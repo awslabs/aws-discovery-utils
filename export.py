@@ -31,6 +31,7 @@ def get_time(time, space=False):
 
 # Begins export task for up to MAX_EXPORTS agents
 def start_exporting(count):
+	logging.debug(str.format("start_exporting - count={}, len(exporting_agents)={} (MAX_EXPORTS={}), len(agents_queue)={}", count, len(exporting_agents), MAX_EXPORTS, len(agents_queue)))
 	while len(exporting_agents) < MAX_EXPORTS and len(agents_queue) > 0:
 		agent = agents_queue.pop(0)
 		count += 1
@@ -62,10 +63,11 @@ def start_exporting(count):
 					# Full message: You have reached limit of maximum allowed concurrent exports. Please wait for current export tasks to finish before starting another.
 					agents_queue.insert(0, agent)
 					count -= 1
-					logging.info(str.format("Maximum number of concurrent exports exceeded. Requeuing agent {} and waiting...", agent['agentId']))
+					logging.info(str.format("start_exporting - Maximum number of concurrent exports exceeded. Requeuing agent {} and waiting...", agent['agentId']))
 					time.sleep(8)
 				else:
-					logging.info(str.format("OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
+					# Full message: An error occurred (OperationNotPermittedException) when calling the StartExportTask operation: A successful export is already present Export ID: <export id>
+					logging.info(str.format("start_exporting - OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
 					exporting_agents[agent['agentId']] = [start_time, final_end_time, last_word]
 			else:
 				raise(e)
@@ -102,20 +104,23 @@ def poll_exports(dir_name):
 				done.append(agent_id)
 			# Otherwise, go to next export
 			else:
+				next_start_time = actual_end
+				next_end_time = min(next_start_time + datetime.timedelta(days=3), exporting_agents[agent_id][1])
+				logging.info(str.format("Next export for agent {} will continue at {} and end at {}", agent['agentId'], next_start_time, next_end_time))
 				try:
 					response = client.start_export_task(filters=[{'name': 'agentIds', 'values': [agent_id], 'condition': 'EQUALS'}], 
-											startTime = actual_end, endTime = min(actual_end + datetime.timedelta(days=3),
-											exporting_agents[agent_id][1]))
+											startTime = next_start_time, endTime = next_end_time)
 					exporting_agents[agent_id][2] = response['exportId']
 				# If successful export already exists, use exportId of existing export
 				except Exception as e:
 					if (type(e).__name__ == "OperationNotPermittedException"):
 						last_word = e.message.split()[-1]
 						if (last_word == "another."): # Too many concurrent exports
-							logging.info("Maximum number of concurrent exports exceeded. Waiting...")
+							logging.info("poll_exports - Maximum number of concurrent exports exceeded. Waiting...")
 							time.sleep(8)
 						else: # Export already exists
-							exporting_agents[agent_id][2] = e.message.split()[-1]
+							logging.info(str.format("poll_exports - OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
+							exporting_agents[agent_id][2] = last_word
 					else:
 						raise(e)
 		elif exports_info['exportStatus'] == "IN_PROGRESS":
@@ -124,6 +129,7 @@ def poll_exports(dir_name):
 			logging.info(str.format("ERROR: Unknown status for exportId {}: {} - {}", exports_info['exportId'], exports_info['exportStatus'], exports_info['statusMessage']))
 	for agent_id in done:
 		del exporting_agents[agent_id]
+	logging.debug(str.format("Exiting poll_exports - {} agents were done exporting, {} still exporting", len(done), len(exporting_agents)))
 
 		
 # Returns actual end time
@@ -212,6 +218,7 @@ if __name__ == '__main__':
 	count = 0
 	count = start_exporting(count)
 	while len(agents_queue) > 0 or len(exporting_agents) > 0:
+		logging.debug(str.format("Main export loop - {} agents in export queue, {} agents currently waiting to export, count={}", len(agents_queue), len(exporting_agents), count))
 		poll_exports(dir_name)
 		time.sleep(2)
 		count = start_exporting(count)
