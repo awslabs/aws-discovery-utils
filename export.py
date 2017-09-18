@@ -77,17 +77,12 @@ def poll_exports(dir_name):
 	done = []
 	for agent_id in exporting_agents:
 		logging.info("Trying to export data for " + agent_id + " from " + str(exporting_agents[agent_id][0]))
-		export_response = client.describe_export_tasks(filters=[{'name': 'agentIds', 'values': [agent_id], 'condition': 'EQUALS'}])
-		time.sleep(1)
-		exports_info = None
-		# Search for matching response in while loop for paginated export responses
-		while exports_info == None:
-			for response in export_response['exportsInfo']:
-				if response['exportId'] == exporting_agents[agent_id][2]:
-					exports_info = response
-			if exports_info == None:
-				export_response = client.describe_export_tasks(nextToken=export_response['nextToken'])
-		time.sleep(1)
+		export_response = client.describe_export_tasks(exportIds=[exporting_agents[agent_id][2]], filters=[{'name': 'agentIds', 'values': [agent_id], 'condition': 'EQUALS'}])
+                if len(export_response['exportsInfo']) > 0:
+			exports_info = export_response['exportsInfo'][0]
+		else:
+			continue
+
 		# Extract data on successful export task
 		if exports_info['exportStatus'] in ["SUCCEEDED", "FAILED"]:
 			logging.info(str.format("    export {}", exports_info['exportStatus']))
