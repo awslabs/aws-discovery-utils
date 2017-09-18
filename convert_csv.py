@@ -67,6 +67,7 @@ PERF_SCHEMA = StructType([
             StructField("total_disk_write_ops_per_sec", DoubleType(), True),
             StructField("total_network_bytes_read_per_sec_in_kbps", DoubleType(), True),
             StructField("total_network_bytes_written_per_sec_in_kbps", DoubleType(), True),
+            StructField("total_num_logical_processors", IntegerType(), True),
             StructField("total_num_cores", IntegerType(), True),
             StructField("total_num_cpus", IntegerType(), True),
             StructField("total_num_disks", IntegerType(), True),

@@ -56,6 +56,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS system_performance (
   `total_disk_write_ops_per_sec` double,
   `total_network_bytes_read_per_sec_in_kbps` double,
   `total_network_bytes_written_per_sec_in_kbps` double,
+  `total_num_logical_processors` int,
   `total_num_cores` int,
   `total_num_cpus` int,
   `total_num_disks` int,
