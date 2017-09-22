@@ -101,7 +101,7 @@ def poll_exports(dir_name):
 			else:
 				next_start_time = actual_end
 				next_end_time = min(next_start_time + datetime.timedelta(days=3), exporting_agents[agent_id][1])
-				logging.info(str.format("Next export for agent {} will continue at {} and end at {}", agent['agentId'], next_start_time, next_end_time))
+				logging.info(str.format("Next export for agent {} will continue at {} and end at {}", agent_id, next_start_time, next_end_time))
 				try:
 					response = client.start_export_task(filters=[{'name': 'agentIds', 'values': [agent_id], 'condition': 'EQUALS'}], 
 											startTime = next_start_time, endTime = next_end_time)
@@ -114,7 +114,7 @@ def poll_exports(dir_name):
 							logging.info("poll_exports - Maximum number of concurrent exports exceeded. Waiting...")
 							time.sleep(8)
 						else: # Export already exists
-							logging.info(str.format("poll_exports - OperationNotPermittedException for agent {}: {}", agent['agentId'], e.message))
+							logging.info(str.format("poll_exports - OperationNotPermittedException for agent {}: {}", agent_id, e.message))
 							exporting_agents[agent_id][2] = last_word
 					else:
 						raise(e)
