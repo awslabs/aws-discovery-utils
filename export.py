@@ -11,13 +11,14 @@ import boto3
 import datetime
 import sys
 import os
-import urllib
-import zipfile
+from urllib2 import urlopen, URLError, HTTPError
+from zipfile import ZipFile
 import shutil
 import json
 import time
 import argparse
 import logging
+from StringIO import StringIO
 
 MAX_EXPORTS = 5			# Max number of concurrent export tasks
 MAX_DESCRIBE_AGENTS = 100	# Max number of results from describe agents
@@ -126,22 +127,36 @@ def poll_exports(dir_name):
 		del exporting_agents[agent_id]
 	logging.debug(str.format("Exiting poll_exports - {} agents were done exporting, {} still exporting", len(done), len(exporting_agents)))
 
-		
+def download_with_retry(url, num_retries=5):
+	for num_retry in range(num_retries):
+		try:
+			time.sleep(num_retry**2) # exponential backoff
+			response = urlopen(url)
+		except HTTPError, e:
+			logging.error(str.format("download of {} failed on {}th retry with HTTP Error: {}", url, num_retry, e.code))
+		except URLError, e:
+			logging.error(str.format("download of {} failed on {}th retry with URL Error: {}", url, num_retry, e.reason))
+		else:
+			return response.read()
+
 # Returns actual end time
 def extract_exports(exports_info, agent_id, dir_name):
 	logging.debug(str.format("extracting {}, url={}", exports_info['exportId'], exports_info['configurationsDownloadUrl']))
-	zipped, _ = urllib.urlretrieve(exports_info['configurationsDownloadUrl'])
+	zipped = download_with_retry(exports_info['configurationsDownloadUrl'])
+	if zipped is None:
+		msg = str.format("Unable to download {}", exports_info['configurationsDownloadUrl'])
+		logging.error(msg)
+		raise Exception(msg)
 	# String representing start time of export
 	actual_start = None
 	actual_end = None
 	export_meta = exporting_agents[agent_id]
 	start_time, end_time, curr_id = export_meta[0], export_meta[1], export_meta[2]
 	start_str = start_time.strftime('%Y-%m-%dT%H%M%SZ') + "_"
-	with zipfile.ZipFile(zipped, 'r') as zip_ref:
+	with ZipFile(StringIO(zipped)) as zip_ref:
 		for name in zip_ref.namelist():
 			basename = os.path.basename(name)
 			subdir = basename.split("_").pop().split(".")[0]
-			source = zip_ref.open(name)
 			if subdir == "results":
 				json_file = zip_ref.open(name)
 				d = json.load(json_file)
@@ -157,8 +172,8 @@ def extract_exports(exports_info, agent_id, dir_name):
 				os.makedirs(target_dir)
 			except OSError: # already exists
 				pass
-			target = open(os.path.join(target_dir, start_str + basename), "w")
-			with source, target:
+			source = zip_ref.open(name)
+			with open(os.path.join(target_dir, start_str + basename), 'w') as target:
 				shutil.copyfileobj(source, target)
 	return (actual_start, actual_end)
 
