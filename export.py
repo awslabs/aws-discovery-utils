@@ -203,7 +203,7 @@ if __name__ == '__main__':
 	else:
 		logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s: %(message)s')
 
-	client = boto3.client('discovery')
+	client = boto3.client('discovery', region_name='us-west-2') #setting us-west-2 as it is the only region where the service is available
 
 	logging.info(str.format("Querying Discovery Service for agents to export. directory={}, start_time={}, end_time={}, filters={}", dir_name, start_input, end_input, filters))
 	agents_queue = []
