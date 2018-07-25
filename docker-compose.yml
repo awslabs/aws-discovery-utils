@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+
+  master:
+    restart: always
+    image: sequenceiq/spark:1.6.0
+    hostname: master
+    ports:
+      - 4040:4040
+      - 8042:8042
+      - 7077:7077
+      - 8088:8088
+      - 8080:8080
+    networks:
+      - aws
+    #mem_limit: 1024m
+    command: bash /usr/local/spark/sbin/start-master.sh && ping localhost > /dev/null
+
+  worker:
+    restart: always
+    image: sequenceiq/spark:1.6.0
+    links:
+      - master:master
+    expose:
+      - 8081
+    networks:
+      - aws
+    command: bash /usr/local/spark/sbin/start-slave.sh spark://master:7077 && ping localhost >/dev/null
+
+networks:
+  aws:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.10.0.0/16
