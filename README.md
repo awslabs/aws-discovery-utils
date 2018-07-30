@@ -3,6 +3,41 @@ Utilities for use with the AWS Discovery Service API.
 ## Export Utility
 Using the export.py script, you can collect and organize Discovery data to a specified local location.
 
+## Services
+
+The following services are available as part of the Docker Compose stack.
+
+|Service|Address|
+|:------|:------|
+|Hadoop|[http://localhost:8088](http://localhost:8088)|
+
+## Prerequisites
+
+* Docker - [download](https://www.docker.com/community-edition#/download)
+* Docker Compose - [notes](https://docs.docker.com/compose/install/)
+
+### Setup
+
+Clone the repository and then from the cloned directory:
+
+	$ make
+	
+This will take some time the first time as various Docker images are downloaded.
+
+### Testing
+
+To check all of the containers are running as expected:
+
+	$ docker-compose ps
+	
+### Cleaning up
+
+Once you've finished
+
+	$ make clean
+	
+Will shutdown the containers.
+
 ### Set up
 Before running the export script, make sure you have boto3 installed with `pip install boto3` and have the proper AWS credentials set according to the instructions [here](http://boto3.readthedocs.io/en/latest/guide/quickstart.html). Please refer to the boto3 documentation for any related installation issues. 
 
