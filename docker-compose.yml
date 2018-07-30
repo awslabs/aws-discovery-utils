@@ -29,7 +29,7 @@ services:
     command: bash /usr/local/spark/sbin/start-slave.sh spark://master:7077 && ping localhost >/dev/null
 
   application:
-    restart: always
+    # restart: always
     build:
       context: ./
       dockerfile: Docker/Dockerfile_application
