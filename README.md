@@ -61,6 +61,7 @@ This script uses Spark in local mode to convert to Parquet. Install [PySpark](ht
 
 ### Usage
 Two parameters are required:
+
 * `bucket-name [S3 bucket name]` : Name of the S3 bucket where Parquet files will be written
 * `region [AWS region name]` : Region for the named S3 bucket, e.g., us-west-2
 Optionally two additional paramters can be specified:
