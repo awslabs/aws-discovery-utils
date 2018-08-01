@@ -82,8 +82,14 @@ PERF_SCHEMA = StructType([
     StructField("timestamp", TimestampType(), True)])
 
 # Maps export types to their schema for pyspark
-EXPORT_TYPES = {"destinationProcessConnection" : PC_SCHEMA, "networkInterface": NETWORK_SCHEMA, "osInfo": OS_SCHEMA,
-                "process": PROCESS_SCHEMA, "sourceProcessConnection": PC_SCHEMA, "systemPerformance": PERF_SCHEMA}
+EXPORT_TYPES = {
+    "destinationProcessConnection" : PC_SCHEMA,
+    "networkInterface": NETWORK_SCHEMA,
+    "osInfo": OS_SCHEMA,
+    "process": PROCESS_SCHEMA,
+    "sourceProcessConnection": PC_SCHEMA,
+    "systemPerformance": PERF_SCHEMA
+}
 
 def get_subdirs(directory):
     return [name for name in os.listdir(directory) if os.path.isdir(os.path.join(directory, name))]
