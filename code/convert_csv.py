@@ -105,7 +105,7 @@ def get_dataframe(filename, export_type):
     return sqlContext.createDataFrame(rdd, EXPORT_TYPES[export_type])
 
 def is_agent_id(maybe_agent_id):
-    return re.match("[io]-[0-9a-z]{17}$", maybe_agent_id)
+    return re.search("[io]-[0-9a-z]{17}$", maybe_agent_id)
 
 def get_parquet_files(dir_path):
     # Concatenates same csv file types as parquet files within agentsExports folder, under "parquetExports" subdir
