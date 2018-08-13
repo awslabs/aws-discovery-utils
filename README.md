@@ -94,7 +94,7 @@ $ docker-compose exec master python /code/convert_csv.py --directory /tmp/data -
 
 * Load data into Athena using `discovery_athena.ddl`
 
-## Tools
+## Tools
 
 ### Export Utility
 Using the export.py script, you can collect and organize Discovery data to a specified local location.
