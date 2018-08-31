@@ -1,3 +1,12 @@
+"""
+Copyright 2017-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+
+    http://aws.amazon.com/apache2.0/
+    
+or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+"""
 import os
 import sys
 import argparse
@@ -82,8 +91,14 @@ PERF_SCHEMA = StructType([
     StructField("timestamp", TimestampType(), True)])
 
 # Maps export types to their schema for pyspark
-EXPORT_TYPES = {"destinationProcessConnection" : PC_SCHEMA, "networkInterface": NETWORK_SCHEMA, "osInfo": OS_SCHEMA,
-                "process": PROCESS_SCHEMA, "sourceProcessConnection": PC_SCHEMA, "systemPerformance": PERF_SCHEMA}
+EXPORT_TYPES = {
+    "destinationProcessConnection" : PC_SCHEMA,
+    "networkInterface": NETWORK_SCHEMA,
+    "osInfo": OS_SCHEMA,
+    "process": PROCESS_SCHEMA,
+    "sourceProcessConnection": PC_SCHEMA,
+    "systemPerformance": PERF_SCHEMA
+}
 
 def get_subdirs(directory):
     return [name for name in os.listdir(directory) if os.path.isdir(os.path.join(directory, name))]
@@ -99,7 +114,7 @@ def get_dataframe(filename, export_type):
     return sqlContext.createDataFrame(rdd, EXPORT_TYPES[export_type])
 
 def is_agent_id(maybe_agent_id):
-    return re.match("[io]-[0-9a-z]{17}$", maybe_agent_id)
+    return re.search("[io]-[0-9a-z]{17}$", maybe_agent_id)
 
 def get_parquet_files(dir_path):
     # Concatenates same csv file types as parquet files within agentsExports folder, under "parquetExports" subdir
@@ -164,8 +179,8 @@ def parse_args():
     parser.add_argument("--directory", help="Path to directory containing agentExports folder. Default set to current directory.",
                         type=str, default=os.getcwd())
     parser.add_argument("--filters", help="List of agentIds for which exported data will be collected.", nargs='+', type=str)
-    parser.add_argument("bucket_name", metavar="bucket-name", help="Name of S3 bucket where exports converted to parquet format will be stored.", type=str)
-    parser.add_argument("region", help="Region for S3 bucket.", type=str)
+    parser.add_argument("--bucket_name", metavar="bucket-name", help="Name of S3 bucket where exports converted to parquet format will be stored.", type=str)
+    parser.add_argument("--region", help="Region for S3 bucket.", type=str)
     return parser.parse_args()
 
 
