@@ -1,8 +1,6 @@
 """
 Copyright 2017-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-
 Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
-
     http://aws.amazon.com/apache2.0/
     
 or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
@@ -11,14 +9,14 @@ import boto3
 import datetime
 import sys
 import os
-from urllib2 import urlopen, URLError, HTTPError
+from urllib.request import urlopen, URLError, HTTPError
 from zipfile import ZipFile
 import shutil
 import json
 import time
 import argparse
 import logging
-from StringIO import StringIO
+from io import StringIO
 
 MAX_EXPORTS = 5			# Max number of concurrent export tasks
 MAX_DESCRIBE_AGENTS = 100	# Max number of results from describe agents
@@ -79,7 +77,7 @@ def poll_exports(dir_name):
 	for agent_id in exporting_agents:
 		logging.info("Trying to export data for " + agent_id + " from " + str(exporting_agents[agent_id][0]))
 		export_response = client.describe_export_tasks(exportIds=[exporting_agents[agent_id][2]], filters=[{'name': 'agentIds', 'values': [agent_id], 'condition': 'EQUALS'}])
-                if len(export_response['exportsInfo']) > 0:
+		if len(export_response['exportsInfo']) > 0:
 			exports_info = export_response['exportsInfo'][0]
 		else:
 			continue
@@ -132,9 +130,9 @@ def download_with_retry(url, num_retries=5):
 		try:
 			time.sleep(num_retry**2) # exponential backoff
 			response = urlopen(url)
-		except HTTPError, e:
+		except HTTPError as e:
 			logging.error(str.format("download of {} failed on {}th retry with HTTP Error: {}", url, num_retry, e.code))
-		except URLError, e:
+		except URLError as e:
 			logging.error(str.format("download of {} failed on {}th retry with URL Error: {}", url, num_retry, e.reason))
 		else:
 			return response.read()
@@ -233,4 +231,3 @@ if __name__ == '__main__':
 		time.sleep(2)
 		count = start_exporting(count)
 	logging.info("Finished exporting all agents.")
-
